@@ -15,15 +15,24 @@ func main() {
 	}
 	defer db.Pool.Close()
 	server := gin.Default()
-	// server.GET("/events", getEvents)
+	server.GET("/events", getEvents)
 	server.POST("/events", createEvent)
+	server.GET("/events/:id", getEventById)
+	server.DELETE("/events/:id", deleteEventById)
 	server.Run(":8080")
 }
 
-// func getEvents(context *gin.Context) {
-// 	events := models.GetAllEvents()
-// 	context.JSON(http.StatusOK, events)
-// }
+func getEvents(context *gin.Context) {
+	events, err := models.GetAllEvents(context.Request)
+	if err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Failed to fetch events",
+			"error":   err.Error(),
+		})
+		return
+	}
+	context.JSON(http.StatusOK, events)
+}
 
 func createEvent(context *gin.Context) {
 	var event models.Event
@@ -51,4 +60,32 @@ func createEvent(context *gin.Context) {
 		"id":      id,
 	})
 
+}
+
+func getEventById(context *gin.Context) {
+	id := context.Param("id")
+	event, err := models.GetEventById(context.Request, id)
+	if err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Failed to fetch event",
+			"error":   err.Error(),
+		})
+		return
+	}
+	context.JSON(http.StatusOK, event)
+}
+
+func deleteEventById(context *gin.Context) {
+	id := context.Param("id")
+	err := models.DeleteEventById(context.Request, id)
+	if err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Failed to delete event",
+			"error":   err.Error(),
+		})
+		return
+	}
+	context.JSON(http.StatusOK, gin.H{
+		"message": "Event deleted",
+	})
 }
