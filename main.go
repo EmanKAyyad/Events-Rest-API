@@ -1,23 +1,29 @@
 package main
 
 import (
+	"log"
 	"net/http"
 
+	"example.com/rest/db"
 	"example.com/rest/models"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
+	if err := db.InitDb(); err != nil {
+		log.Fatalf("db init failed: %v", err)
+	}
+	defer db.Pool.Close()
 	server := gin.Default()
-	server.GET("/events", getEvents)
+	// server.GET("/events", getEvents)
 	server.POST("/events", createEvent)
 	server.Run(":8080")
 }
 
-func getEvents(context *gin.Context) {
-	events := models.GetAllEvents()
-	context.JSON(http.StatusOK, events)
-}
+// func getEvents(context *gin.Context) {
+// 	events := models.GetAllEvents()
+// 	context.JSON(http.StatusOK, events)
+// }
 
 func createEvent(context *gin.Context) {
 	var event models.Event
@@ -30,14 +36,19 @@ func createEvent(context *gin.Context) {
 		})
 		return
 	}
-
-	event.Id = 1
 	event.UserId = 1
 
-	event.Save()
+	err, id := event.Save(context.Request)
+	if err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Failed to create event",
+			"error":   err.Error(),
+		})
+		return
+	}
 	context.JSON(http.StatusCreated, gin.H{
 		"message": "Event created",
-		"event":   event,
+		"id":      id,
 	})
 
 }

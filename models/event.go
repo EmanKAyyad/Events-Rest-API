@@ -1,9 +1,15 @@
 package models
 
-import "time"
+import (
+	"net/http"
+	"time"
+
+	"example.com/rest/db"
+	"github.com/google/uuid"
+)
 
 type Event struct {
-	Id          int
+	Id          uuid.UUID `json:"id"`
 	Name        string    `binding:"required"`
 	Description string    `binding:"required"`
 	Location    string    `binding:"required"`
@@ -11,13 +17,18 @@ type Event struct {
 	UserId      int
 }
 
-var events = []Event{}
+func (e Event) Save(r *http.Request) (error, uuid.UUID) {
 
-func (e Event) Save() {
-	// later add to db
-	events = append(events, e)
+	err := db.Pool.QueryRow(r.Context(),
+		"INSERT INTO events (name, description, location, datetime, user_id) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+		e.Name, e.Description, e.Location, e.DateTime, e.UserId,
+	).Scan(&e.Id)
+	if err != nil {
+		return err, uuid.Nil
+	}
+	return nil, e.Id
 }
 
-func GetAllEvents() []Event {
-	return events
-}
+// func GetAllEvents() []Event {
+// return events
+// }
