@@ -3,6 +3,7 @@ package models
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"example.com/rest/db"
@@ -62,6 +63,50 @@ func GetEventById(r *http.Request, id string) (Event, error) {
 }
 func DeleteEventById(r *http.Request, id string) error {
 	tag, err := db.Pool.Exec(r.Context(), "DELETE FROM events WHERE id=$1", id)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("event not found")
+	}
+	return nil
+}
+
+func (e Event) UpdateEventById(r *http.Request, id string) error {
+	setClauses := []string{}
+	args := []interface{}{}
+	argIdx := 1
+
+	if e.Name != "" {
+		setClauses = append(setClauses, fmt.Sprintf("name=$%d", argIdx))
+		args = append(args, e.Name)
+		argIdx++
+	}
+	if e.Description != "" {
+		setClauses = append(setClauses, fmt.Sprintf("description=$%d", argIdx))
+		args = append(args, e.Description)
+		argIdx++
+	}
+	if e.Location != "" {
+		setClauses = append(setClauses, fmt.Sprintf("location=$%d", argIdx))
+		args = append(args, e.Location)
+		argIdx++
+	}
+	if !e.DateTime.IsZero() {
+		setClauses = append(setClauses, fmt.Sprintf("datetime=$%d", argIdx))
+		args = append(args, e.DateTime)
+		argIdx++
+	}
+
+	fmt.Println("args: ", args)
+	if len(setClauses) == 0 {
+		return fmt.Errorf("no fields to update")
+	}
+
+	args = append(args, id)
+	query := fmt.Sprintf("UPDATE events SET %s WHERE id=$%d", strings.Join(setClauses, ", "), argIdx)
+
+	tag, err := db.Pool.Exec(r.Context(), query, args...)
 	if err != nil {
 		return err
 	}
