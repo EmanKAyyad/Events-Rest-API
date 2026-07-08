@@ -17,7 +17,7 @@ type Event struct {
 	Description string    `binding:"required"`
 	Location    string    `binding:"required"`
 	DateTime    time.Time `binding:"required"`
-	UserId      int
+	UserId      uuid.UUID `json:"userId"`
 }
 
 func (e Event) Save(r *http.Request) (error, uuid.UUID) {
