@@ -7,6 +7,7 @@ import (
 	"example.com/rest/models"
 	"example.com/rest/utils"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 func getEvents(context *gin.Context) {
@@ -31,7 +32,7 @@ func createEvent(context *gin.Context) {
 		return
 	}
 
-	_, err := utils.ValidateToken(token)
+	claims, err := utils.ValidateToken(token)
 	if err != nil {
 		context.JSON(http.StatusUnauthorized, gin.H{
 			"message": "Invalid token",
@@ -45,11 +46,18 @@ func createEvent(context *gin.Context) {
 	if err != nil {
 		context.JSON(http.StatusBadRequest, gin.H{
 			"message": "Couldn't parse request",
-			"error":   err,
+			"error":   err.Error(),
 		})
 		return
 	}
-	event.UserId = 1
+	event.UserId, err = uuid.Parse(claims["userId"].(string))
+	if err != nil {
+		context.JSON(http.StatusBadRequest, gin.H{
+			"message": "Invalid user ID",
+			"error":   err.Error(),
+		})
+		return
+	}
 
 	err, id := event.Save(context.Request)
 	if err != nil {
