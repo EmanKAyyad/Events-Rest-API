@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"example.com/rest/models"
-	"example.com/rest/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -23,25 +22,9 @@ func getEvents(context *gin.Context) {
 }
 
 func createEvent(context *gin.Context) {
-	token := context.Request.Header.Get("Authorization")
-
-	if token == "" {
-		context.JSON(http.StatusUnauthorized, gin.H{
-			"message": "Missing token",
-		})
-		return
-	}
-
-	claims, err := utils.ValidateToken(token)
-	if err != nil {
-		context.JSON(http.StatusUnauthorized, gin.H{
-			"message": "Invalid token",
-		})
-		return
-	}
 
 	var event models.Event
-	err = context.ShouldBindJSON(&event)
+	err := context.ShouldBindJSON(&event)
 
 	if err != nil {
 		context.JSON(http.StatusBadRequest, gin.H{
@@ -50,7 +33,14 @@ func createEvent(context *gin.Context) {
 		})
 		return
 	}
-	event.UserId, err = uuid.Parse(claims["userId"].(string))
+	userId, exists := context.Get("userId")
+	if !exists {
+		context.JSON(http.StatusUnauthorized, gin.H{
+			"message": "User ID not found in context",
+		})
+		return
+	}
+	event.UserId, err = uuid.Parse(userId.(string))
 	if err != nil {
 		context.JSON(http.StatusBadRequest, gin.H{
 			"message": "Invalid user ID",
@@ -114,7 +104,7 @@ func updateEventById(context *gin.Context) {
 		return
 	}
 
-	err = event.UpdateEventById(context.Request, id)
+	err = event.UpdateEventById(context, id)
 	if err != nil {
 		context.JSON(http.StatusInternalServerError, gin.H{
 			"message": "Failed to update event",

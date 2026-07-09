@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"example.com/rest/db"
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
@@ -62,7 +63,11 @@ func GetEventById(r *http.Request, id string) (Event, error) {
 	return event, nil
 }
 func DeleteEventById(r *http.Request, id string) error {
-	tag, err := db.Pool.Exec(r.Context(), "DELETE FROM events WHERE id=$1", id)
+	userId, exists := r.Context().Value("userId").(string)
+	if !exists {
+		return fmt.Errorf("user ID not found in context")
+	}
+	tag, err := db.Pool.Exec(r.Context(), "DELETE FROM events WHERE id=$1 AND user_id=$2", id, userId)
 	if err != nil {
 		return err
 	}
@@ -72,7 +77,7 @@ func DeleteEventById(r *http.Request, id string) error {
 	return nil
 }
 
-func (e Event) UpdateEventById(r *http.Request, id string) error {
+func (e Event) UpdateEventById(context *gin.Context, id string) error {
 	setClauses := []string{}
 	args := []interface{}{}
 	argIdx := 1
@@ -104,9 +109,14 @@ func (e Event) UpdateEventById(r *http.Request, id string) error {
 	}
 
 	args = append(args, id)
-	query := fmt.Sprintf("UPDATE events SET %s WHERE id=$%d", strings.Join(setClauses, ", "), argIdx)
+	userId, exists := context.Get("userId")
+	if !exists {
+		return fmt.Errorf("user ID not found in context")
+	}
+	args = append(args, userId.(string))
+	query := fmt.Sprintf("UPDATE events SET %s WHERE id=$%d AND user_id=$%d", strings.Join(setClauses, ", "), argIdx, argIdx+1)
 
-	tag, err := db.Pool.Exec(r.Context(), query, args...)
+	tag, err := db.Pool.Exec(context.Request.Context(), query, args...)
 	if err != nil {
 		return err
 	}
