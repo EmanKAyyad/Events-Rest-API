@@ -26,5 +26,6 @@ func Authenticate(c *gin.Context) {
 	}
 
 	c.Set("userId", claims["userId"])
+
 	c.Next()
 }
